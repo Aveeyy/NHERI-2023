@@ -50,76 +50,65 @@ df_f = pd.DataFrame(data, columns=["file", "heading", "content", "tokens"])
 
 #iterating through each file to tokenize
 for i in os.listdir(directory):
-      with open(f"{i}", "r") as file:
-          content = file.read()
-      file_no_md = i.replace(".md", "")
-      file_no_md = "tapipy/" + file_no_md
+    path = os.path.join(directory, i)
+    with open(path, "r", encoding="utf-8") as file:
+        content = file.read()
 
-      # Use markdown2 to convert the markdown file to html
-      html = markdown2.markdown(content)
+    file_no_md = "tapipy/" + i.replace(".md", "")
 
-      # Use BeautifulSoup to parse the html
-      soup = BeautifulSoup(html, "html.parser")
+    # markdown -> html -> soup
+    html = markdown2.markdown(content)
+    soup = BeautifulSoup(html, "html.parser")
 
-      # Initialize variables to store heading, subheading, and corresponding paragraphs
-      headings = []
-      paragraphs = []
-      data = []
-      MAX_WORDS = 500
+    headings, paragraphs = [], []
+    rows = []  # per-file rows
 
-      def count_tokens(text: str) -> int:
-          """count the number of tokens in a string"""
-          return len(tokenizer.encode(text))
+    def count_tokens(text: str) -> int:
+        """Count GPT-2 tokens (approx) for budgeting."""
+        return len(tokenizer.encode(text))
 
-      def break_text(text, max_tokens):
-        tokens = text.split()
-        chunks = []
-        current_chunk = ""
+    def break_text(text: str, max_words: int = 300):
+        """Break text into chunks of at most max_words words."""
+        words = text.split()
+        return [
+            " ".join(words[j:j + max_words])
+            for j in range(0, len(words), max_words)
+        ]
 
-        for token in tokens:
-            if len(current_chunk) + len(token) < max_tokens:
-                current_chunk += token + " "
-            else:
-                chunks.append(current_chunk.strip())
-                current_chunk = token + " "
+    for tag in soup.descendants:
+        if tag.name in ["h1", "h2", "h3", "h4", "h5", "h6"]:
+            # flush previous section (heading + paragraphs) when a new heading starts
+            if headings and paragraphs:
+                hdgs = " ".join(headings)
+                para = " ".join(paragraphs)
 
-        if current_chunk:
-            chunks.append(current_chunk.strip())
+                if count_tokens(para) > 1024:
+                    for chunk in break_text(para, max_words=300):
+                        rows.append([file_no_md, hdgs, chunk, count_tokens(chunk)])
+                else:
+                    rows.append([file_no_md, hdgs, para, count_tokens(para)])
 
-        return chunks
+                headings, paragraphs = [], []
 
+            headings.append(tag.text)
 
+        elif tag.name == "p":
+            paragraphs.append(tag.text)
 
-      # Iterate through the tags in the soup
-      for tag in soup.descendants:
-          # Check if the tag is a heading
-          if tag.name in ["h1", "h2", "h3", "h4", "h5", "h6"]:
-              # When the next heading is encountered, print the heading, subheading, and corresponding paragraphs
-              if headings and paragraphs:
-                  hdgs = " ".join(headings)
-                  para = " ".join(paragraphs)
-                  counting = count_tokens(para)
-                  if counting > 1024:
-                    para_chunks = break_text(para, 1024)
-                    for chunk in para_chunks:
-                      data.append([file_no_md, hdgs, chunk, count_tokens(chunk)])
-                      headings = []
-                      paragraphs = []
-                  else:
-                    data.append([file_no_md, hdgs, para, count_tokens(para)])
-                    headings = []
-                    paragraphs = []
-              # Add to heading
-              headings.append(tag.text)
-          # Check if the tag is a paragraph
-          elif tag.name == "p":
-              paragraphs.append(tag.text)
+    # OPTIONAL: flush the last section if the doc ends without another heading
+    if headings and paragraphs:
+        hdgs = " ".join(headings)
+        para = " ".join(paragraphs)
 
-      df = pd.DataFrame(data, columns=["file", "heading", "content", "tokens"])
-      df = df[df.tokens>40]
-      df = df.reset_index().drop('index',axis=1) # reset index
-      df_f = pd.concat([df_f, df])
-      df_f = df_f.reset_index().drop('index',axis=1)
+        if count_tokens(para) > 1024:
+            for chunk in break_text(para, max_words=300):
+                rows.append([file_no_md, hdgs, chunk, count_tokens(chunk)])
+        else:
+            rows.append([file_no_md, hdgs, para, count_tokens(para)])
+
+    df = pd.DataFrame(rows, columns=["file", "heading", "content", "tokens"])
+    df = df[df.tokens > 40].reset_index(drop=True)
+    df_f = pd.concat([df_f, df]).reset_index(drop=True)
 
 df_f
 
@@ -151,7 +140,7 @@ def compute_doc_embeddings(df: pd.DataFrame):
 vector_embedding = compute_doc_embeddings(df_f)
 
 df_f['vector_embedding'] = pd.Series(vector_embedding)
-df.head()
+df_f.head()
 
 from openai.embeddings_utils import cosine_similarity
 
@@ -162,7 +151,7 @@ def order_documents_query_similarity(data, query_str, nres=3):
     res = data.sort_values('similarities', ascending=False).head(nres)
     return res
 
-res = order_documents_query_similarity(df, "What is the first step to creating a tapis application?")
+res = order_documents_query_similarity(df_f, "What is the first step to creating a tapis application?")
 res.head()
 
 def construct_prompt(question: str, df: pd.DataFrame, ncontents = 3) -> str:
@@ -189,7 +178,7 @@ def construct_prompt(question: str, df: pd.DataFrame, ncontents = 3) -> str:
 
     return header + "".join(chosen_sections) + "\n\n Q: " + question + "\n A:"
 
-construct_prompt(question="What is the first step to creating a tapis application?", df=df)
+construct_prompt(question="What is the first step to creating a tapis application?", df=df_f)
 
 COMPLETIONS_API_PARAMS = {
     "temperature": 0.0,
@@ -217,6 +206,6 @@ def answer_query_with_context(
 
     return response["choices"][0]["text"].strip(" \n")
 
-answer_query_with_context("What is the first step to creating a tapis application?", df)
+answer_query_with_context("What is the first step to creating a tapis application?", df_f)
 
-answer_query_with_context("What is the meaning of life?", df)
+answer_query_with_context("What is the meaning of life?", df_f)
