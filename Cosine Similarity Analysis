@@ -127,7 +127,7 @@ df_f.to_pickle("dataframe.pickle")
 #pd.read_pickle("dataframe.pkl")
 #pd.read_arrow("dataframetable.arrow")
 
-openai.api_key = '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'
+openai.api_key = ' '
 
 def get_embedding(text: str, model: str=EMBEDDING_MODEL):
     result = openai.Embedding.create(
@@ -149,7 +149,7 @@ def compute_doc_embeddings(df: pd.DataFrame):
 
 vector_embedding = compute_doc_embeddings(df_f)
 
-df['vector_embedding'] = pd.Series(vector_embedding)
+df_f['vector_embedding'] = pd.Series(vector_embedding)
 df.head()
 
 from openai.embeddings_utils import cosine_similarity
