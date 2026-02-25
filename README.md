@@ -1,10 +1,10 @@
-Mini Retrieval-Augmented QA for Technical Documentation
-
+**Mini Retrieval-Augmented QA for Technical Documentation
+**
 This project implements a lightweight retrieval-augmented question answering (RAG) pipeline over Markdown-based technical documentation. Given a natural-language question, the system retrieves the most relevant document sections using embeddings and cosine similarity, then generates an answer grounded strictly in the retrieved context.
 
 The goal of this project is to explore document ingestion, chunking strategies, semantic search, and prompt construction for factual QA over unstructured technical text.
 
-How It Works
+**How It Works**
 
 Document Ingestion
 
