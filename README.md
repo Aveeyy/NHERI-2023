@@ -6,28 +6,28 @@ The goal of this project is to explore document ingestion, chunking strategies, 
 
 **How It Works**
 
-Document Ingestion
+1.Document Ingestion
 
-Markdown files are loaded from a local directory.
+    -Markdown files are loaded from a local directory.
 
-Files are converted to HTML and parsed using BeautifulSoup.
+    -Files are converted to HTML and parsed using BeautifulSoup.
 
-Headings and their associated paragraphs are grouped into logical sections.
+    -Headings and their associated paragraphs are grouped into logical sections.
 
-Chunking & Token Budgeting
+2.Chunking & Token Budgeting
 
-Long sections are split into smaller chunks using a word-based chunking strategy.
+    -Long sections are split into smaller chunks using a word-based chunking strategy.
 
-Each chunk is annotated with an approximate token count (GPT-2 tokenizer) for prompt budgeting.
+    -Each chunk is annotated with an approximate token count (GPT-2 tokenizer) for prompt budgeting.
 
-Embedding & Retrieval
+3.Embedding & Retrieval
 
-Each document chunk is embedded using the OpenAI Embeddings API.
+    -Each document chunk is embedded using the OpenAI Embeddings API.
 
-For a given query, cosine similarity is used to retrieve the most relevant chunks.
+    -For a given query, cosine similarity is used to retrieve the most relevant chunks.
 
-Prompt Construction & Answering
+4.Prompt Construction & Answering
 
-Retrieved chunks are concatenated into a bounded context window.
+    -Retrieved chunks are concatenated into a bounded context window.
 
-The model is instructed to answer only using the provided context, and to respond with “I don’t know” if the answer is not present.
+    -The model is instructed to answer only using the provided context, and to respond with “I don’t know” if the answer is not present.
