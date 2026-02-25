@@ -21,7 +21,9 @@ import pandas as pd
 import pickle
 import pyarrow
 
-openai.api_key = ''
+import os
+openai.api_key = os.getenv("OPENAI_API_KEY")
+assert openai.api_key, "Missing OPENAI_API_KEY env var"
 
 from google.colab import drive
 drive.mount('/content/drive')
@@ -127,7 +129,6 @@ df_f.to_pickle("dataframe.pickle")
 #pd.read_pickle("dataframe.pkl")
 #pd.read_arrow("dataframetable.arrow")
 
-openai.api_key = ' '
 
 def get_embedding(text: str, model: str=EMBEDDING_MODEL):
     result = openai.Embedding.create(
